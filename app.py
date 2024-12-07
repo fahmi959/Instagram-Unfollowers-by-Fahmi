@@ -24,10 +24,8 @@ def get_instagram_data(username, password):
             logging.debug("Login successful and session saved.")
         except instaloader.TwoFactorAuthRequiredException:
             # Menangani 2FA
-            code = input("Enter 2FA code: ")
-            L.two_factor_login(code)
-            L.save_session_to_file()  # Simpan sesi 2FA
-            logging.debug("Login with 2FA successful.")
+            # Adjusted to handle 2FA properly in automated environments
+            return {"error": "2FA required. Please provide 2FA code manually."}
         except Exception as e:
             logging.error(f"Failed to login to Instagram: {e}")
             raise Exception(f"Failed to login to Instagram: {e}")
@@ -62,6 +60,8 @@ def get_data():
         logging.debug(f"Received request for username: {username}")
         time.sleep(5)  # Tambahkan jeda 5 detik antara permintaan untuk menghindari pemblokiran
         data = get_instagram_data(username, password)
+        if 'error' in data:
+            return jsonify(data), 400
         unfollowers = set(data['followers']) - set(data['following'])
         return jsonify({'followers': data['followers'], 'following': data['following'], 'unfollowers': list(unfollowers)})
     except Exception as e:

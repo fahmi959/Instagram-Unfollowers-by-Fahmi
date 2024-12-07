@@ -11,5 +11,10 @@
       "src": "/get_data",
       "dest": "/app.py"
     }
-  ]
+  ],
+  "functions": {
+    "app.py": {
+      "maxDuration": 60  // Set timeout to 60 seconds
+    }
+  }
 }

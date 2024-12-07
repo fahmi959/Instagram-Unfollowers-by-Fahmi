@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk mengambil data followers dan following (tanpa login)
+# Fungsi untuk mengambil data followers dan following (tanpa login, untuk akun publik)
 def get_instagram_data(username):
     L = instaloader.Instaloader()
 

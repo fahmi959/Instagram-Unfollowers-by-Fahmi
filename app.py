@@ -7,8 +7,11 @@ app = Flask(__name__)
 def get_instagram_data(username, password):
     L = instaloader.Instaloader()
 
-    # Login ke Instagram
-    L.login(username, password)
+    try:
+        # Login ke Instagram
+        L.login(username, password)
+    except Exception as e:
+        raise Exception(f"Failed to login to Instagram: {e}")
 
     # Ambil profil pengguna
     profile = instaloader.Profile.from_username(L.context, username)
@@ -40,5 +43,4 @@ def get_data():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# Tidak perlu menjalankan app.run(debug=True) di Vercel, karena Gunicorn yang menjalankan aplikasi

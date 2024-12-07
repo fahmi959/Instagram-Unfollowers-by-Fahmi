@@ -1,7 +1,7 @@
 import logging
+import time
 from flask import Flask, jsonify, request
 import instaloader
-import os
 
 # Setup logging
 logging.basicConfig(level=logging.DEBUG)
@@ -12,13 +12,25 @@ app = Flask(__name__)
 def get_instagram_data(username, password):
     L = instaloader.Instaloader()
 
+    # Coba muat sesi yang sudah ada (jika ada)
     try:
-        logging.debug(f"Trying to login with username: {username}")
-        L.login(username, password)
-        logging.debug("Login successful.")
-    except Exception as e:
-        logging.error(f"Failed to login to Instagram: {e}")
-        raise Exception(f"Failed to login to Instagram: {e}")
+        L.load_session_from_file(username)
+        logging.debug("Session loaded from file.")
+    except FileNotFoundError:
+        try:
+            logging.debug(f"Trying to login with username: {username}")
+            L.login(username, password)
+            L.save_session_to_file()  # Simpan sesi login untuk penggunaan berikutnya
+            logging.debug("Login successful and session saved.")
+        except instaloader.TwoFactorAuthRequiredException:
+            # Menangani 2FA
+            code = input("Enter 2FA code: ")
+            L.two_factor_login(code)
+            L.save_session_to_file()  # Simpan sesi 2FA
+            logging.debug("Login with 2FA successful.")
+        except Exception as e:
+            logging.error(f"Failed to login to Instagram: {e}")
+            raise Exception(f"Failed to login to Instagram: {e}")
 
     try:
         profile = instaloader.Profile.from_username(L.context, username)
@@ -47,9 +59,13 @@ def get_data():
 
     try:
         logging.debug(f"Received request for username: {username}")
+        time.sleep(5)  # Tambahkan jeda 5 detik antara permintaan untuk menghindari pemblokiran
         data = get_instagram_data(username, password)
         unfollowers = set(data['followers']) - set(data['following'])
         return jsonify({'followers': data['followers'], 'following': data['following'], 'unfollowers': list(unfollowers)})
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)

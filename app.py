@@ -8,34 +8,14 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk login ke Instagram dan menyimpan sesi
-def login_instagram(username, password):
-    L = instaloader.Instaloader()
-
-    try:
-        L.load_session_from_file(username)
-        logging.debug("Session loaded from file.")
-    except FileNotFoundError:
-        try:
-            logging.debug(f"Trying to login with username: {username}")
-            L.login(username, password)
-            L.save_session_to_file()  # Simpan sesi login untuk penggunaan berikutnya
-            logging.debug("Login successful and session saved.")
-        except instaloader.TwoFactorAuthRequiredException:
-            # Menangani 2FA
-            return {"error": "2FA required. Please provide 2FA code manually."}
-        except Exception as e:
-            logging.error(f"Failed to login to Instagram: {e}")
-            return {"error": f"Failed to login to Instagram: {e}"}
-
-    return {"message": "Login successful, session saved"}
-
-# Fungsi untuk mengambil data followers dan following
+# Fungsi untuk mengambil data followers dan following dari akun publik
 def get_instagram_data(username):
     L = instaloader.Instaloader()
+
     try:
-        L.load_session_from_file(username)
+        # Mengambil profil publik tanpa login
         profile = instaloader.Profile.from_username(L.context, username)
+        logging.debug(f"Profile loaded: {profile}")
     except Exception as e:
         logging.error(f"Failed to load profile: {e}")
         return {"error": f"Failed to load profile: {e}"}
@@ -63,21 +43,6 @@ def get_instagram_data(username):
         'followers': followers,
         'following': following
     }
-
-# Endpoint untuk login
-@app.route('/login', methods=['POST'])
-def login():
-    username = request.json.get('username')
-    password = request.json.get('password')
-
-    if not username or not password:
-        logging.error("Username and password are required.")
-        return jsonify({'error': 'Username and password are required'}), 400
-
-    data = login_instagram(username, password)
-    if 'error' in data:
-        return jsonify(data), 400
-    return jsonify(data)
 
 # Endpoint untuk mengambil data followers dan following
 @app.route('/get_data', methods=['GET'])

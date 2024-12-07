@@ -24,7 +24,6 @@ def get_instagram_data(username, password):
             logging.debug("Login successful and session saved.")
         except instaloader.TwoFactorAuthRequiredException:
             # Menangani 2FA
-            # Adjusted to handle 2FA properly in automated environments
             return {"error": "2FA required. Please provide 2FA code manually."}
         except Exception as e:
             logging.error(f"Failed to login to Instagram: {e}")
@@ -37,9 +36,9 @@ def get_instagram_data(username, password):
         logging.error(f"Failed to load profile: {e}")
         raise Exception(f"Failed to load profile: {e}")
 
-    # Fetch only a limited number of followers and following
-    followers = set(profile.get_followers())[:50]  # Limit to 50 followers
-    following = set(profile.get_followees())[:50]  # Limit to 50 following
+    # Ambil semua followers dan following (tanpa batasan 50)
+    followers = set(profile.get_followers())  # Ambil semua followers
+    following = set(profile.get_followees())  # Ambil semua following
 
     return {
         'followers': [f.username for f in followers],
@@ -60,13 +59,25 @@ def get_data():
         logging.debug(f"Received request for username: {username}")
         time.sleep(5)  # Tambahkan jeda 5 detik antara permintaan untuk menghindari pemblokiran
         data = get_instagram_data(username, password)
+        
+        # Jika 2FA diperlukan, kembalikan error
         if 'error' in data:
             return jsonify(data), 400
+        
+        # Ambil daftar unfollowers (followers yang tidak di-follow back)
         unfollowers = set(data['followers']) - set(data['following'])
-        return jsonify({'followers': data['followers'], 'following': data['following'], 'unfollowers': list(unfollowers)})
+
+        # Kembalikan data followers, following, dan unfollowers dalam format JSON
+        return jsonify({
+            'followers': data['followers'],
+            'following': data['following'],
+            'unfollowers': list(unfollowers)
+        })
+    
     except Exception as e:
         logging.error(f"Error occurred: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Menjalankan Flask di server dengan debug mode
+    app.run(debug=True, host='0.0.0.0', port=5000)

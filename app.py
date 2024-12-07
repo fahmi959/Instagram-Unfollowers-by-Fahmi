@@ -8,14 +8,13 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk mengambil data followers dan following dari akun publik
+# Fungsi untuk mengambil data followers dan following (tanpa login)
 def get_instagram_data(username):
     L = instaloader.Instaloader()
 
     try:
-        # Mengambil profil publik tanpa login
+        # Mengambil profil tanpa login jika akun publik
         profile = instaloader.Profile.from_username(L.context, username)
-        logging.debug(f"Profile loaded: {profile}")
     except Exception as e:
         logging.error(f"Failed to load profile: {e}")
         return {"error": f"Failed to load profile: {e}"}
@@ -44,7 +43,7 @@ def get_instagram_data(username):
         'following': following
     }
 
-# Endpoint untuk mengambil data followers dan following
+# Endpoint untuk mengambil data followers dan following tanpa login
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')

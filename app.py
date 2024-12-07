@@ -1,6 +1,5 @@
 import logging
 import time
-import threading
 from flask import Flask, jsonify, request
 import instaloader
 
@@ -8,24 +7,6 @@ import instaloader
 logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
-
-# Fungsi untuk mengambil followers
-def get_followers(profile, followers_list):
-    logging.debug("Fetching followers...")
-    for i, follower in enumerate(profile.get_followers()):
-        followers_list.append(follower.username)
-        if i >= 100:  # Batasi sampai 100 followers
-            break
-        time.sleep(0.2)  # Delay untuk menghindari pemblokiran
-
-# Fungsi untuk mengambil following
-def get_following(profile, following_list):
-    logging.debug("Fetching following...")
-    for i, followee in enumerate(profile.get_followees()):
-        following_list.append(followee.username)
-        if i >= 100:  # Batasi sampai 100 following
-            break
-        time.sleep(0.2)  # Delay untuk menghindari pemblokiran
 
 # Fungsi untuk login ke Instagram dan mengambil data followers dan following
 def get_instagram_data(username, password):
@@ -42,6 +23,7 @@ def get_instagram_data(username, password):
             L.save_session_to_file()  # Simpan sesi login untuk penggunaan berikutnya
             logging.debug("Login successful and session saved.")
         except instaloader.TwoFactorAuthRequiredException:
+            # Menangani 2FA
             return {"error": "2FA required. Please provide 2FA code manually."}
         except Exception as e:
             logging.error(f"Failed to login to Instagram: {e}")
@@ -54,24 +36,32 @@ def get_instagram_data(username, password):
         logging.error(f"Failed to load profile: {e}")
         raise Exception(f"Failed to load profile: {e}")
 
+    # Ambil followers dan following dalam batch kecil
     followers = []
     following = []
 
-    # Jalankan fungsi secara paralel
-    followers_thread = threading.Thread(target=get_followers, args=(profile, followers))
-    following_thread = threading.Thread(target=get_following, args=(profile, following))
+    # Ambil followers secara bertahap
+    logging.debug("Fetching followers...")
+    for i, follower in enumerate(profile.get_followers()):
+        followers.append(follower.username)
+        if i >= 100:  # Batasi sampai 100 followers
+            break
+        time.sleep(1)  # Delay untuk menghindari pemblokiran
 
-    followers_thread.start()
-    following_thread.start()
-
-    followers_thread.join()
-    following_thread.join()
+    # Ambil following secara bertahap
+    logging.debug("Fetching following...")
+    for i, followee in enumerate(profile.get_followees()):
+        following.append(followee.username)
+        if i >= 100:  # Batasi sampai 100 following
+            break
+        time.sleep(1)  # Delay untuk menghindari pemblokiran
 
     return {
         'followers': followers,
         'following': following
     }
 
+# Endpoint untuk mengambil data followers dan following
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')

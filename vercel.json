@@ -14,7 +14,7 @@
   ],
   "functions": {
     "app.py": {
-      "maxDuration": 60  // Set timeout to 60 seconds
+      "maxDuration": 60  
     }
   }
 }

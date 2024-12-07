@@ -42,6 +42,7 @@ def get_data():
     password = request.args.get('password')
 
     if not username or not password:
+        logging.error("Username and password are required.")
         return jsonify({'error': 'Username and password are required'}), 400
 
     try:

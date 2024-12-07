@@ -36,13 +36,23 @@ def get_instagram_data(username, password):
         logging.error(f"Failed to load profile: {e}")
         raise Exception(f"Failed to load profile: {e}")
 
-    # Ambil semua followers dan following (tanpa batasan 50)
-    followers = set(profile.get_followers())  # Ambil semua followers
-    following = set(profile.get_followees())  # Ambil semua following
+    # Ambil semua followers dan following dalam batch
+    followers = []
+    following = []
+
+    # Ambil followers dengan batch
+    logging.debug("Fetching followers...")
+    for follower in profile.get_followers():
+        followers.append(follower.username)
+
+    # Ambil following dengan batch
+    logging.debug("Fetching following...")
+    for followee in profile.get_followees():
+        following.append(followee.username)
 
     return {
-        'followers': [f.username for f in followers],
-        'following': [f.username for f in following]
+        'followers': followers,
+        'following': following
     }
 
 # Endpoint untuk mengambil data followers dan following

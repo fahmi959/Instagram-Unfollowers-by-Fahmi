@@ -39,8 +39,9 @@ def get_instagram_data(username, password):
         logging.error(f"Failed to load profile: {e}")
         raise Exception(f"Failed to load profile: {e}")
 
-    followers = set(profile.get_followers())
-    following = set(profile.get_followees())
+    # Fetch only a limited number of followers and following
+    followers = set(profile.get_followers())[:50]  # Limit to 50 followers
+    following = set(profile.get_followees())[:50]  # Limit to 50 following
 
     return {
         'followers': [f.username for f in followers],

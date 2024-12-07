@@ -52,6 +52,7 @@ def get_data():
         logging.error("Username is required.")
         return jsonify({'error': 'Username is required'}), 400
 
+    # Mendapatkan data followers dan following
     data = get_instagram_data(username)
     if 'error' in data:
         return jsonify(data), 400

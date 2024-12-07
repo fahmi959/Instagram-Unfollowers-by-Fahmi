@@ -8,11 +8,10 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk login ke Instagram dan mengambil data followers dan following
-def get_instagram_data(username, password):
+# Fungsi untuk login ke Instagram dan menyimpan sesi
+def login_instagram(username, password):
     L = instaloader.Instaloader()
 
-    # Coba muat sesi yang sudah ada (jika ada)
     try:
         L.load_session_from_file(username)
         logging.debug("Session loaded from file.")
@@ -27,16 +26,20 @@ def get_instagram_data(username, password):
             return {"error": "2FA required. Please provide 2FA code manually."}
         except Exception as e:
             logging.error(f"Failed to login to Instagram: {e}")
-            raise Exception(f"Failed to login to Instagram: {e}")
+            return {"error": f"Failed to login to Instagram: {e}"}
 
+    return {"message": "Login successful, session saved"}
+
+# Fungsi untuk mengambil data followers dan following
+def get_instagram_data(username):
+    L = instaloader.Instaloader()
     try:
+        L.load_session_from_file(username)
         profile = instaloader.Profile.from_username(L.context, username)
-        logging.debug(f"Profile loaded: {profile}")
     except Exception as e:
         logging.error(f"Failed to load profile: {e}")
-        raise Exception(f"Failed to load profile: {e}")
+        return {"error": f"Failed to load profile: {e}"}
 
-    # Ambil followers dan following dalam batch kecil
     followers = []
     following = []
 
@@ -46,7 +49,7 @@ def get_instagram_data(username, password):
         followers.append(follower.username)
         if i >= 100:  # Batasi sampai 100 followers
             break
-        time.sleep(1)  # Delay untuk menghindari pemblokiran
+        time.sleep(0.5)  # Delay untuk menghindari pemblokiran
 
     # Ambil following secara bertahap
     logging.debug("Fetching following...")
@@ -54,45 +57,49 @@ def get_instagram_data(username, password):
         following.append(followee.username)
         if i >= 100:  # Batasi sampai 100 following
             break
-        time.sleep(1)  # Delay untuk menghindari pemblokiran
+        time.sleep(0.5)  # Delay untuk menghindari pemblokiran
 
     return {
         'followers': followers,
         'following': following
     }
 
-# Endpoint untuk mengambil data followers dan following
-@app.route('/get_data', methods=['GET'])
-def get_data():
-    username = request.args.get('username')
-    password = request.args.get('password')
+# Endpoint untuk login
+@app.route('/login', methods=['POST'])
+def login():
+    username = request.json.get('username')
+    password = request.json.get('password')
 
     if not username or not password:
         logging.error("Username and password are required.")
         return jsonify({'error': 'Username and password are required'}), 400
 
-    try:
-        logging.debug(f"Received request for username: {username}")
-        time.sleep(5)  # Tambahkan jeda 5 detik antara permintaan untuk menghindari pemblokiran
-        data = get_instagram_data(username, password)
-        
-        # Jika 2FA diperlukan, kembalikan error
-        if 'error' in data:
-            return jsonify(data), 400
-        
-        # Ambil daftar unfollowers (followers yang tidak di-follow back)
-        unfollowers = set(data['followers']) - set(data['following'])
+    data = login_instagram(username, password)
+    if 'error' in data:
+        return jsonify(data), 400
+    return jsonify(data)
 
-        # Kembalikan data followers, following, dan unfollowers dalam format JSON
-        return jsonify({
-            'followers': data['followers'],
-            'following': data['following'],
-            'unfollowers': list(unfollowers)
-        })
-    
-    except Exception as e:
-        logging.error(f"Error occurred: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+# Endpoint untuk mengambil data followers dan following
+@app.route('/get_data', methods=['GET'])
+def get_data():
+    username = request.args.get('username')
+
+    if not username:
+        logging.error("Username is required.")
+        return jsonify({'error': 'Username is required'}), 400
+
+    data = get_instagram_data(username)
+    if 'error' in data:
+        return jsonify(data), 400
+
+    # Ambil daftar unfollowers (followers yang tidak di-follow back)
+    unfollowers = set(data['followers']) - set(data['following'])
+
+    return jsonify({
+        'followers': data['followers'],
+        'following': data['following'],
+        'unfollowers': list(unfollowers)
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)

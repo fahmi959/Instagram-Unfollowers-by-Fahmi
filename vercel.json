@@ -8,7 +8,7 @@
   ],
   "routes": [
     {
-      "src": "/get_data",
+      "src": "/(.*)",
       "dest": "/app.py"
     }
   ],

@@ -1,7 +1,7 @@
 import logging
 import time
 import requests
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 import instaloader
 
 # Setup logging
@@ -50,6 +50,25 @@ def send_to_qstash(username):
         logging.error(f"Failed to send to QStash: {response.text}")
     else:
         logging.debug(f"Task queued in QStash for {username}")
+
+# Halaman login
+@app.route('/')
+def login():
+    return render_template('login.html')
+
+# Endpoint untuk memproses login
+@app.route('/login', methods=['POST'])
+def do_login():
+    username = request.form.get('username')
+    password = request.form.get('password')
+
+    if not username or not password:
+        return jsonify({'error': 'Username and password are required'}), 400
+
+    # Kirim permintaan ke QStash untuk memproses tugas
+    send_to_qstash(username)
+
+    return jsonify({'message': f"Task for {username} has been queued in QStash."}), 200
 
 # Endpoint untuk mengambil jumlah followers dan following tanpa login
 @app.route('/get_data', methods=['GET'])

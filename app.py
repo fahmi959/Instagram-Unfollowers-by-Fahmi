@@ -23,7 +23,9 @@ def get_instagram_data(username, password=None):
         except instaloader.exceptions.LoginException as e:
             # Menangani LoginException yang bisa mencakup masalah checkpoint
             logging.error(f"Login failed: {e}")
-            return {"error": f"Login failed: {str(e)}. Please verify your login through the browser if required."}
+            # Jika login gagal karena checkpoint, arahkan ke halaman verifikasi Instagram
+            challenge_url = e.args[0].split(' ')[-1]  # Ambil URL challenge dari exception
+            return {"error": f"Login failed: {str(e)}. Please verify your login through the browser. Visit this URL: {challenge_url}"}
         except Exception as e:
             logging.error(f"Login failed: {e}")
             return {"error": f"Login failed: {e}"}
@@ -89,8 +91,19 @@ def get_data():
 
     logging.debug(f"Received request for data with username: {username}")
     data = get_instagram_data(username, password)
+    
     if 'error' in data:
         logging.error(f"Error fetching data: {data['error']}")
+        
+        # Jika login gagal karena checkpoint, arahkan ke halaman verifikasi
+        if "Please verify your login through the browser" in data['error']:
+            # Ambil URL challenge dari error message
+            challenge_url = data['error'].split("Visit this URL: ")[-1]
+            return jsonify({
+                'error': f"Verification required. Please verify your login using the link below and try again.",
+                'verification_url': challenge_url
+            }), 400
+        
         return jsonify(data), 400
 
     logging.debug(f"Returning data: Followers: {data['followers_count']}, Following: {data['following_count']}")

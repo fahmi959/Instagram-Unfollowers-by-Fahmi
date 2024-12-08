@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk mengambil jumlah followers dan following (login diperlukan untuk akun pribadi)
+# Fungsi untuk mengambil jumlah followers dan following
 def get_instagram_data(username, password=None):
     L = instaloader.Instaloader()
 
@@ -22,7 +22,8 @@ def get_instagram_data(username, password=None):
         except instaloader.exceptions.LoginException as e:
             # Menangani LoginException yang bisa mencakup masalah checkpoint
             logging.error(f"Login failed: {e}")
-            return {"error": f"Login failed: {str(e)}. Please verify your login through the browser if required."}
+            verification_url = "https://www.instagram.com/accounts/login/"
+            return {"error": f"Login failed: {str(e)}. Please verify your login through the browser if required. <a href='{verification_url}'>Click here to verify</a>"}
         except Exception as e:
             logging.error(f"Login failed: {e}")
             return {"error": f"Login failed: {e}"}
@@ -85,6 +86,12 @@ def get_data():
         'followers_count': data['followers_count'],
         'following_count': data['following_count']
     })
+
+# Mengarahkan ke halaman Instagram untuk verifikasi login
+@app.route('/verify_login')
+def verify_login():
+    verification_url = "https://www.instagram.com/accounts/login/"
+    return redirect(verification_url)
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)

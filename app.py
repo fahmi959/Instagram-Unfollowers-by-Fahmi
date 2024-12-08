@@ -14,14 +14,15 @@ def get_instagram_data(username, password=None):
     if password:
         try:
             logging.debug(f"Attempting to login with username: {username}")
-            L.login(username, password)
+            L.login(username, password)  # Login menggunakan username dan password
             logging.debug("Login successful.")
         except instaloader.exceptions.BadCredentialsException:
             logging.error(f"Login failed: Bad credentials for username: {username}")
             return {"error": "Bad credentials."}
-        except instaloader.exceptions.CheckpointRequiredException:
-            logging.error(f"Login failed: Checkpoint required for username: {username}")
-            return {"error": "Checkpoint required. Please complete verification on Instagram."}
+        except instaloader.exceptions.LoginException as e:
+            # Menangani LoginException yang bisa mencakup masalah checkpoint
+            logging.error(f"Login failed: {e}")
+            return {"error": f"Login failed: {str(e)}. Please verify your login through the browser if required."}
         except Exception as e:
             logging.error(f"Login failed: {e}")
             return {"error": f"Login failed: {e}"}
@@ -43,11 +44,13 @@ def get_instagram_data(username, password=None):
         'following_count': following_count
     }
 
+# Halaman login
 @app.route('/')
 def login():
     logging.debug("Rendering login page.")
     return render_template('login.html')
 
+# Endpoint untuk memproses login dan mengalihkan ke /get_data
 @app.route('/login', methods=['POST'])
 def do_login():
     username = request.form.get('username')
@@ -58,8 +61,10 @@ def do_login():
         return jsonify({'error': 'Username and password are required'}), 400
 
     logging.debug(f"Received login request for username: {username}")
+    # Mengarahkan ke /get_data dengan parameter username dan password
     return redirect(url_for('get_data', username=username, password=password))
 
+# Endpoint untuk mengambil jumlah followers dan following
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')

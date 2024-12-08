@@ -1,10 +1,9 @@
 import logging
-import requests
 from flask import Flask, jsonify, request, redirect, url_for, render_template
 import instaloader
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG)  # Menampilkan semua log dengan level DEBUG
+logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
@@ -12,18 +11,22 @@ app = Flask(__name__)
 def get_instagram_data(username, password=None):
     L = instaloader.Instaloader()
 
-    # Jika password diberikan, lakukan login
     if password:
         try:
             logging.debug(f"Attempting to login with username: {username}")
-            L.login(username, password)  # Login menggunakan username dan password
+            L.login(username, password)
             logging.debug("Login successful.")
+        except instaloader.exceptions.BadCredentialsException:
+            logging.error(f"Login failed: Bad credentials for username: {username}")
+            return {"error": "Bad credentials."}
+        except instaloader.exceptions.CheckpointRequiredException:
+            logging.error(f"Login failed: Checkpoint required for username: {username}")
+            return {"error": "Checkpoint required. Please complete verification on Instagram."}
         except Exception as e:
             logging.error(f"Login failed: {e}")
             return {"error": f"Login failed: {e}"}
 
     try:
-        # Mengambil profil setelah login (atau tanpa login untuk akun publik)
         logging.debug(f"Attempting to load profile for username: {username}")
         profile = instaloader.Profile.from_username(L.context, username)
         logging.debug(f"Profile loaded: {username}")
@@ -31,7 +34,6 @@ def get_instagram_data(username, password=None):
         logging.error(f"Failed to load profile: {e}")
         return {"error": f"Failed to load profile: {e}"}
 
-    # Mendapatkan jumlah followers dan following
     followers_count = profile.followers
     following_count = profile.followees
     logging.debug(f"Followers: {followers_count}, Following: {following_count}")
@@ -41,13 +43,11 @@ def get_instagram_data(username, password=None):
         'following_count': following_count
     }
 
-# Halaman login
 @app.route('/')
 def login():
     logging.debug("Rendering login page.")
     return render_template('login.html')
 
-# Endpoint untuk memproses login dan mengalihkan ke /get_data
 @app.route('/login', methods=['POST'])
 def do_login():
     username = request.form.get('username')
@@ -58,10 +58,8 @@ def do_login():
         return jsonify({'error': 'Username and password are required'}), 400
 
     logging.debug(f"Received login request for username: {username}")
-    # Mengarahkan ke /get_data dengan parameter username dan password
     return redirect(url_for('get_data', username=username, password=password))
 
-# Endpoint untuk mengambil jumlah followers dan following
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')
@@ -72,7 +70,6 @@ def get_data():
         return jsonify({'error': 'Username is required'}), 400
 
     logging.debug(f"Received request for data with username: {username}")
-    # Mendapatkan jumlah followers dan following setelah login
     data = get_instagram_data(username, password)
     if 'error' in data:
         logging.error(f"Error fetching data: {data['error']}")

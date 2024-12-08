@@ -79,21 +79,7 @@ def get_data():
         logging.error("Username is required.")
         return jsonify({'error': 'Username is required'}), 400
 
-    # Kirim permintaan ke QStash untuk memproses tugas
-    send_to_qstash(username)
-
-    return jsonify({'message': f"Task for {username} has been queued in QStash."}), 200
-
-# Endpoint untuk proses tugas yang diminta dari QStash
-@app.route('/process_task', methods=['POST'])
-def process_task():
-    data = request.get_json()
-    username = data.get("username")
-
-    if not username:
-        return jsonify({'error': 'Username is required'}), 400
-
-    # Mendapatkan jumlah followers dan following
+    # Mendapatkan jumlah followers dan following langsung
     data = get_instagram_data(username)
     if 'error' in data:
         return jsonify(data), 400

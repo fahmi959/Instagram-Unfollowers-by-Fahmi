@@ -1,5 +1,6 @@
 import logging
 import time
+import requests
 from flask import Flask, jsonify, request
 import instaloader
 
@@ -8,7 +9,11 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk mengambil data followers dan following (tanpa login, untuk akun publik)
+# URL QStash dan token API untuk autentikasi
+QSTASH_URL = 'https://qstash.upstash.io'  # Ganti dengan URL QStash Anda
+QSTASH_TOKEN = 'eyJVc2VySUQiOiIwY2JhNzE1MS1jOGU4LTRlYjAtOGI5Ny00ZmZlOGM2ZjU4NmIiLCJQYXNzd29yZCI6ImRiY2E1NTc5MTJhZDQ1MDNhZWYxYzc4NTdjNDFmMDI4In0='  # Ganti dengan token QStash Anda
+
+# Fungsi untuk mengambil jumlah followers dan following (tanpa login, untuk akun publik)
 def get_instagram_data(username):
     L = instaloader.Instaloader()
 
@@ -19,31 +24,34 @@ def get_instagram_data(username):
         logging.error(f"Failed to load profile: {e}")
         return {"error": f"Failed to load profile: {e}"}
 
-    followers = []
-    following = []
-
-    # Ambil followers secara bertahap
-    logging.debug("Fetching followers...")
-    for i, follower in enumerate(profile.get_followers()):
-        followers.append(follower.username)
-        if i >= 100:  # Batasi sampai 100 followers
-            break
-        time.sleep(0.5)  # Delay untuk menghindari pemblokiran
-
-    # Ambil following secara bertahap
-    logging.debug("Fetching following...")
-    for i, followee in enumerate(profile.get_followees()):
-        following.append(followee.username)
-        if i >= 100:  # Batasi sampai 100 following
-            break
-        time.sleep(0.5)  # Delay untuk menghindari pemblokiran
+    # Mendapatkan jumlah followers dan following
+    followers_count = profile.followers
+    following_count = profile.followees
 
     return {
-        'followers': followers,
-        'following': following
+        'followers_count': followers_count,
+        'following_count': following_count
     }
 
-# Endpoint untuk mengambil data followers dan following tanpa login
+# Fungsi untuk mengirimkan tugas ke QStash
+def send_to_qstash(username):
+    payload = {
+        "username": username
+    }
+
+    # Mengirim permintaan POST ke QStash
+    response = requests.post(
+        QSTASH_URL,
+        json=payload,
+        headers={"Authorization": f"Bearer {QSTASH_TOKEN}"}
+    )
+
+    if response.status_code != 200:
+        logging.error(f"Failed to send to QStash: {response.text}")
+    else:
+        logging.debug(f"Task queued in QStash for {username}")
+
+# Endpoint untuk mengambil jumlah followers dan following tanpa login
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')
@@ -52,18 +60,28 @@ def get_data():
         logging.error("Username is required.")
         return jsonify({'error': 'Username is required'}), 400
 
-    # Mendapatkan data followers dan following
+    # Kirim permintaan ke QStash untuk memproses tugas
+    send_to_qstash(username)
+
+    return jsonify({'message': f"Task for {username} has been queued in QStash."}), 200
+
+# Endpoint untuk proses tugas yang diminta dari QStash
+@app.route('/process_task', methods=['POST'])
+def process_task():
+    data = request.get_json()
+    username = data.get("username")
+
+    if not username:
+        return jsonify({'error': 'Username is required'}), 400
+
+    # Mendapatkan jumlah followers dan following
     data = get_instagram_data(username)
     if 'error' in data:
         return jsonify(data), 400
 
-    # Ambil daftar unfollowers (followers yang tidak di-follow back)
-    unfollowers = set(data['followers']) - set(data['following'])
-
     return jsonify({
-        'followers': data['followers'],
-        'following': data['following'],
-        'unfollowers': list(unfollowers)
+        'followers_count': data['followers_count'],
+        'following_count': data['following_count']
     })
 
 if __name__ == "__main__":

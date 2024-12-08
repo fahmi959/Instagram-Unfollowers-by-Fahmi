@@ -4,7 +4,7 @@ from flask import Flask, jsonify, request, redirect, url_for, render_template
 import instaloader
 
 # Setup logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.DEBUG)  # Menampilkan semua log dengan level DEBUG
 
 app = Flask(__name__)
 
@@ -15,14 +15,18 @@ def get_instagram_data(username, password=None):
     # Jika password diberikan, lakukan login
     if password:
         try:
+            logging.debug(f"Attempting to login with username: {username}")
             L.login(username, password)  # Login menggunakan username dan password
+            logging.debug("Login successful.")
         except Exception as e:
             logging.error(f"Login failed: {e}")
             return {"error": f"Login failed: {e}"}
 
     try:
         # Mengambil profil setelah login (atau tanpa login untuk akun publik)
+        logging.debug(f"Attempting to load profile for username: {username}")
         profile = instaloader.Profile.from_username(L.context, username)
+        logging.debug(f"Profile loaded: {username}")
     except Exception as e:
         logging.error(f"Failed to load profile: {e}")
         return {"error": f"Failed to load profile: {e}"}
@@ -30,6 +34,7 @@ def get_instagram_data(username, password=None):
     # Mendapatkan jumlah followers dan following
     followers_count = profile.followers
     following_count = profile.followees
+    logging.debug(f"Followers: {followers_count}, Following: {following_count}")
 
     return {
         'followers_count': followers_count,
@@ -39,6 +44,7 @@ def get_instagram_data(username, password=None):
 # Halaman login
 @app.route('/')
 def login():
+    logging.debug("Rendering login page.")
     return render_template('login.html')
 
 # Endpoint untuk memproses login dan mengalihkan ke /get_data
@@ -48,8 +54,10 @@ def do_login():
     password = request.form.get('password')
 
     if not username or not password:
+        logging.error("Username and password are required.")
         return jsonify({'error': 'Username and password are required'}), 400
 
+    logging.debug(f"Received login request for username: {username}")
     # Mengarahkan ke /get_data dengan parameter username dan password
     return redirect(url_for('get_data', username=username, password=password))
 
@@ -63,11 +71,14 @@ def get_data():
         logging.error("Username is required.")
         return jsonify({'error': 'Username is required'}), 400
 
+    logging.debug(f"Received request for data with username: {username}")
     # Mendapatkan jumlah followers dan following setelah login
     data = get_instagram_data(username, password)
     if 'error' in data:
+        logging.error(f"Error fetching data: {data['error']}")
         return jsonify(data), 400
 
+    logging.debug(f"Returning data: Followers: {data['followers_count']}, Following: {data['following_count']}")
     return jsonify({
         'followers_count': data['followers_count'],
         'following_count': data['following_count']

@@ -8,13 +8,20 @@ logging.basicConfig(level=logging.DEBUG)
 
 app = Flask(__name__)
 
-# Fungsi untuk mengambil jumlah followers dan following (tanpa login, untuk akun publik)
-def get_instagram_data(username, password):
+# Fungsi untuk mengambil jumlah followers dan following (login diperlukan untuk akun pribadi)
+def get_instagram_data(username, password=None):
     L = instaloader.Instaloader()
 
+    # Jika password diberikan, lakukan login
+    if password:
+        try:
+            L.login(username, password)  # Login menggunakan username dan password
+        except Exception as e:
+            logging.error(f"Login failed: {e}")
+            return {"error": f"Login failed: {e}"}
+
     try:
-        # Mengambil profil tanpa login jika akun publik
-        # Biasanya, password tidak diperlukan untuk mengambil data publik
+        # Mengambil profil setelah login (atau tanpa login untuk akun publik)
         profile = instaloader.Profile.from_username(L.context, username)
     except Exception as e:
         logging.error(f"Failed to load profile: {e}")
@@ -46,7 +53,7 @@ def do_login():
     # Mengarahkan ke /get_data dengan parameter username dan password
     return redirect(url_for('get_data', username=username, password=password))
 
-# Endpoint untuk mengambil jumlah followers dan following tanpa login
+# Endpoint untuk mengambil jumlah followers dan following
 @app.route('/get_data', methods=['GET'])
 def get_data():
     username = request.args.get('username')
@@ -56,7 +63,7 @@ def get_data():
         logging.error("Username is required.")
         return jsonify({'error': 'Username is required'}), 400
 
-    # Mendapatkan jumlah followers dan following langsung
+    # Mendapatkan jumlah followers dan following setelah login
     data = get_instagram_data(username, password)
     if 'error' in data:
         return jsonify(data), 400
